@@ -14,6 +14,7 @@ function Canvas(width,height){
   format.height = height;
    canvas = createCanvas(format.width,format.height);
    ctx = canvas.getContext("2d");
+   console.log(ctx,"ctx");
 }
 
 
@@ -32,25 +33,30 @@ let hash = [];
 let decodedHash = [];
 const Exists = new Map();
 
-
+//to add rarity
 const addRarity = (_str,total) => {
   let itemRarity;
   let name = _str.slice(0,-4);
+  console.log(name,"name");
 if(name.includes('#')){
   itemRarity = Math.round((name.split('#')[1]/100)*edition);
+  console.log(itemRarity,"itemRarity in if");
 }
 else{
   itemRarity = edition/total;
+  console.log(itemRarity,"itemrarity in else");
 }
 
   return itemRarity;
 };
 
+//for clearing file extension
 const cleanName = _str => {
   let name = _str.slice(0, -4).replace('#','');
+  console.log(name,"name from cleanName");
   return name;
 };
-
+//get elements of particular layer/folder
 const getElements = (path,total) => {
   return fs
     .readdirSync(path)
@@ -64,7 +70,7 @@ const getElements = (path,total) => {
       };
     });
 };
-
+//layer configuration
 const layersSetup = layersOrder => {
   const layers = layersOrder.map((layerObj, index) => ({
     id: index,
@@ -78,7 +84,7 @@ const layersSetup = layersOrder => {
 
   return layers;
 };
-
+// step 1 for removing existing files and making new one
 const buildSetup = () => {
   if (fs.existsSync(buildDir)) {
     fs.rmdirSync(buildDir, { recursive: true });
@@ -87,11 +93,11 @@ const buildSetup = () => {
   fs.mkdirSync(`${buildDir}/json`);
   fs.mkdirSync(`${buildDir}/images`);
 };
-
+//create nft images 
 const saveLayer = (_canvas, _edition) => {
   fs.writeFileSync(`${buildDir}/images/${_edition}.png`, _canvas.toBuffer("image/png"));
 };
-
+//push metadata of current eddition to metadata array
 const addMetadata = _edition => {
   let dateTime = Date.now();
   let tempMetadata = {
@@ -102,11 +108,12 @@ const addMetadata = _edition => {
     attributes: attributes,
   };
   metadata.push(tempMetadata);
+  console.log(tempMetadata,"tempmetadata");
   attributes = [];
   hash = [];
   decodedHash = [];
 };
-
+//save metadata file
 const saveMetaData = (_editionCount) => {
   let data = metadata.find((meta) => meta.edition == _editionCount);
   fs.writeFileSync(
@@ -114,7 +121,7 @@ const saveMetaData = (_editionCount) => {
     JSON.stringify(data, null, 2)
   );
 };
-
+//to add attributes to meta data
 const addAttributes = (_element, _layer) => {
   let tempAttr = {
     id: _element.id,
@@ -127,7 +134,7 @@ const addAttributes = (_element, _layer) => {
   hash.push(_element.id);
   decodedHash.push({ [_layer.id]: _element.id });
 };
-
+//it will draw image
 const drawLayer = async (_layer, _edition) => {
   let draw = true;
   do{
@@ -158,20 +165,21 @@ const drawLayer = async (_layer, _edition) => {
 }while(draw);
 };
 
+// step 2 after making build directory this will run
 const createFiles = async (layersOrder,Edition) => {
-  edition = Edition;
-  layersOrder.forEach(({name}) =>{
+  edition = Edition; // from user
+  layersOrder.forEach(({name}) =>{ // for checking ocurrence of elements in particular layer  
     occurence[name] =[];
   })
-  const layers = layersSetup(layersOrder);
+  const layers = layersSetup(layersOrder); // setting up layers configuration
 
-  let numDupes = 0;
+  let numDupes = 0; // duplicate creations
  for (let i = 1; i <= edition; i++) {
    await layers.forEach(async (layer) => {
-     await drawLayer(layer, i);
+     await drawLayer(layer, i); // drawing layer 
    });
 
-   let key = hash.toString();
+   let key = hash.toString(); // making hash for particular nft
    if (Exists.has(key)) {
      console.log(
        `Duplicate creation for edition ${i}. Same as edition ${Exists.get(
@@ -182,14 +190,14 @@ const createFiles = async (layersOrder,Edition) => {
      if (numDupes > edition) break; //prevents infinite loop if no more unique items can be created
      i--;
    } else {
-     Exists.set(key, i);
-     addMetadata(i);
-     saveMetaData(i);
+     Exists.set(key, i); 
+     addMetadata(i); // writing meta data file;
+     saveMetaData(i); // writing json data for each nft
      console.log("Creating edition " + i);
    }
  }
 };
-
+// step 3 creating meta data json file
 const createMetaData = () => {
   fs.stat(`${buildDir}/json/${metDataFile}`, (err) => {
     if(err == null || err.code === 'ENOENT') {
